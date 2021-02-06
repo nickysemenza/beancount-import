@@ -175,7 +175,7 @@ def get_info(raw_entry: Union[MintEntry, RawBalance]) -> dict:
 mint_date_format = '%m/%d/%Y'
 
 
-def load_transactions(filename: str, currency: str = 'USD') -> List[MintEntry]:
+def load_transactions(filename: str, earliest_date: datetime.date, currency: str = 'USD') -> List[MintEntry]:
     expected_field_names = [
         'Date', 'Description', 'Original Description', 'Amount',
         'Transaction Type', 'Category', 'Account Name', 'Labels', 'Notes'
@@ -208,7 +208,8 @@ def load_transactions(filename: str, currency: str = 'USD') -> List[MintEntry]:
                                                       mint_date_format).date()
                 except Exception as e:
                     raise RuntimeError('Invalid date: %r' % row['Date']) from e
-
+                if earliest_date is not None and date < earliest_date:
+                    continue
                 entries.append(
                     MintEntry(
                         account=account,
@@ -302,6 +303,7 @@ class MintSource(description_based_source.DescriptionBasedSource):
     def __init__(self,
                  filename: str,
                  balances_directory: Optional[str] = None,
+                 earliest_date: datetime.date = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self.filename = filename
@@ -309,7 +311,7 @@ class MintSource(description_based_source.DescriptionBasedSource):
 
         # In these entries, account refers to the mint_id, not the journal account.
         self.log_status('mint: loading %s' % filename)
-        self.mint_entries = load_transactions(filename)
+        self.mint_entries = load_transactions(filename, earliest_date)
 
         self.balances = [] # type: List[RawBalance]
         if balances_directory:
